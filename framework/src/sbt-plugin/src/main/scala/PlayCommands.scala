@@ -112,7 +112,7 @@ trait PlayCommands {
 
     val start = target / "start"
     IO.write(start,
-      """java "$@" -cp "`dirname $0`/lib/*" play.core.server.NettyServer `dirname $0`""" /* */ )
+      """java "$@" -cp "`dirname $0`/lib/"""+"""*" play.core.server.NettyServer `dirname $0`""" /* */ )
     val scripts = Seq(start -> (packageName + "/start"))
 
     val conf = Seq((root / "conf" / "application.conf") -> (packageName + "/conf/application.conf"))
@@ -231,7 +231,7 @@ trait PlayCommands {
     IO.write(start,
       """|#! /usr/bin/env sh
          |
-         |java "$@" -cp "`dirname $0`/staged/*" play.core.server.NettyServer `dirname $0`/..
+         |java "$@" -cp "`dirname $0`/staged/"""+"""*" play.core.server.NettyServer `dirname $0`/..
          |""".stripMargin)
 
     "chmod a+x %s".format(start.getAbsolutePath) !
