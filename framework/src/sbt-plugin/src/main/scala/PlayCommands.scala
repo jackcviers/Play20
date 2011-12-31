@@ -302,7 +302,14 @@ trait PlayCommands {
   val CoffeescriptCompiler = AssetsCompiler("coffeescript",
     { assets => (assets ** "*.coffee") },
     { name => name.replace(".coffee", ".js") },
-    { (coffeeFile, minify) => (play.core.coffeescript.CoffeescriptCompiler.compile(coffeeFile), Seq(coffeeFile)) })
+    { 
+      (coffeeFile, minify) => 
+	    val coffeeFiles = (play.core.coffeescript.CoffeescriptCompiler.compile(coffeeFile), Seq(coffeeFile))
+	    val (fullSource, minified, dependencies) = play.core.jsCompile.JavascriptCompiler.compile(coffeFiles._1)
+	    s.log.info(fullSource)
+	    
+	    (if (minify) minified else fullSource, dependencies)
+    })
 
   // ----- Post compile (need to be refactored and fully configurable)
 
