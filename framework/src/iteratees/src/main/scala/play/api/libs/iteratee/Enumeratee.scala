@@ -503,6 +503,30 @@ object Enumeratee {
   }
 
   /**
+   * Group elements into collections of elements while a pairwise comparison succeeds.
+   *
+   * {{{
+   *   case class Person(firstName: String, lastName: String)
+   *   val people = Enumerator.enumerate(
+   *       Seq(
+   *         Person(firstName = "Alice", lastName = "Jones"),
+   *         Person(firstName = "Bob", lastName = "Jones"),
+   *         Person(firstName = "Erica" lastName="Jones"),
+   *         Person(firstName = "Sally", lastName = "Pierce"),
+   *         Person(firstName = "Tom", lastName = "Pierce")
+   *       )
+   *   )
+   *   val families: Enumeratee[Person, List[Person]] = Enumeratee.groupWhile(_.2 == _.2)
+   *   //prints List(Person("Alice", "Jones"), Person("Bob", "Jones"), Person("Erica" "Jones"))List(Person("Sally", "Pierce"), Person("Tom", "Pierce"))
+   *   people.through(families).run(Itereatee.foreach(print))
+   *
+   * }}}
+   *
+   * @param predicate A function to compare two elements. Elements are passed to the predicate by sliding over the iteration.
+   */
+  def groupWhile[E](p: (E, E) => Boolean): Enumeratee[E, List[E]] = Enumeratee.grouped(takeWhile2(p).transform(Iteratee.getChunks[E]))
+
+  /**
    * Create an Enumeratee that filters the inputs using the given predicate
    *
    * @param predicate A function to filter the input elements.
