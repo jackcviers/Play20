@@ -400,8 +400,9 @@ object EnumerateesSpec extends Specification
   }
 
   "Enumeratee.groupWhile" should {
+    case class TestItem(i: Int)
+
     "group chunks into lists grouped by a condition on two elements" in {
-      case class TestItem(i: Int)
       val eventuallyResult: Future[List[List[TestItem]]] = Enumerator(
         TestItem(i = 1),
         TestItem(i = 1),
@@ -416,6 +417,13 @@ object EnumerateesSpec extends Specification
         List(TestItem(i = 4), TestItem(i = 4))
       )
     }
+
+    "not fail on an Empty Enumerator" in {
+      Await.result(
+        Enumerator.empty[TestItem].through(Enumeratee.groupWhile(_.i == _.i))
+          .run(Iteratee.fold(List.empty[List[TestItem]]) { _ :+ _ }), Duration(1, "second")) must be equalTo List(List())
+    }
+
   }
 
 }
