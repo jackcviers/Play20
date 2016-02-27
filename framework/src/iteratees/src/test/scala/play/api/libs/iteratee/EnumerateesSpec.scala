@@ -383,4 +383,13 @@ object EnumerateesSpec extends Specification
     }
   }
 
+  "Enumeratee.takeWhile2" should {
+    "take pass chunks while a condition of two elements is satisfied" in {
+      case class TestItem(i: Int)
+      mustExecute(3) { breakEC =>
+        mustTransformTo(TestItem(i = 1), TestItem(i = 1), TestItem(i = 3), TestItem(i = 4), TestItem(i = 4))(TestItem(i = 1), TestItem(i = 1))(Enumeratee.takeWhile2[TestItem](_.i == _.i)(breakEC))
+      }
+    }
+  }
+
 }

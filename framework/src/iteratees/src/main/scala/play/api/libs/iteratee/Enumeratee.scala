@@ -655,6 +655,78 @@ object Enumeratee {
   }
 
   /**
+   * Create an Enumeratee that passes input through while a predicate on 2 elements is satisfied. Once the predicate
+   * fails, no more input is passed through.
+   *
+   * Useful to group sequential elements by comparing their properties when you may not know the value beforehand, e.g.,
+   *
+   * {{{
+   *   case class Person(firstName: String, lastName: String)
+   *   val people = Enumerator.enumerate(
+   *       Seq(
+   *         Person(firstName = "Alice", lastName = "Jones"),
+   *         Person(firstName = "Bob", lastName = "Jones"),
+   *         Person(firstName = "Erica" lastName="Jones"),
+   *         Person(firstName = "Sally", lastName = "Pierce"),
+   *         Person(firstName = "Tom", lastName = "Pierce")
+   *       )
+   *   )
+   *   val groupFamilies: Enumeratee[Person, Person] = Enumeratee.takeWhile2(_.2 == _.2)
+   *   val families: Enumeratee[Person, List[Person]] = Enumeratee.grouped(getFamilies.transform(Iteratee.getChunks[Person]))
+   *   //prints List(Person("Alice", "Jones"), Person("Bob", "Jones"), Person("Erica" "Jones"))List(Person("Sally", "Pierce"), Person("Tom", "Pierce"))
+   *   people.through(families).run(Itereatee.foreach(print))
+   *
+   * }}}
+   *
+   * @param p A predicate to test the input with.
+   * $paramEcSingle
+   */
+
+  def takeWhile2[E](p: (E, E) => Boolean)(implicit ec: ExecutionContext): Enumeratee[E, E] = {
+    var buffer: List[E] = List.empty[E]
+    val pec = ec.prepare()
+    new CheckDone[E, E] {
+      def step[A](k: K[E, A]): K[E, Iteratee[E, A]] = {
+        case in @ Input.El(e) => Iteratee.flatten(
+          Future {
+            ((x: E) => {
+              if (buffer.isEmpty) {
+                true
+              } else {
+                p(buffer(0), x)
+              }
+            })(e)
+          }(pec).map { b =>
+            if (b) {
+              buffer = List(e)
+              (new CheckDone[E, E] {
+                def continue[A](k: K[E, A]) = Cont(step(k))
+              } &> k(in))
+            } else {
+              buffer = List.empty[E]
+              Done(Cont(k), in)
+            }
+          }(dec)
+        )
+
+        case Input.Empty => {
+          buffer = List.empty[E]
+          (new CheckDone[E, E] {
+            def continue[A](k: K[E, A]) = Cont(step(k))
+          } &> k(Input.Empty))
+        }
+
+        case Input.EOF => {
+          buffer = List.empty[E]
+          Done(Cont(k), Input.EOF)
+        }
+      }
+
+      def continue[A](k: K[E, A]) = Cont(step(k))
+    }
+  }
+
+  /**
    * Create an Enumeratee that passes input through until a predicate is satisfied. Once the predicate
    * is satisfied, no more input is passed through.
    *
@@ -663,6 +735,7 @@ object Enumeratee {
    */
   def breakE[E](p: E => Boolean)(implicit ec: ExecutionContext) = new Enumeratee[E, E] {
     val pec = ec.prepare()
+
     def applyOn[A](inner: Iteratee[E, A]): Iteratee[E, Iteratee[E, A]] = {
       def step(inner: Iteratee[E, A])(in: Input[E]): Iteratee[E, Iteratee[E, A]] = in match {
         case Input.El(e) => Iteratee.flatten(Future(p(e))(pec).map(b => if (b) Done(inner, in) else stepNoBreak(inner)(in))(dec))
