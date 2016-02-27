@@ -384,18 +384,32 @@ object EnumerateesSpec extends Specification
   }
 
   "Enumeratee.takeWhile2" should {
+    case class TestItem(i: Int)
     "pass chunks while a condition of two elements is satisfied" in {
-      case class TestItem(i: Int)
+
       mustExecute(3) { breakEC =>
         mustTransformTo(TestItem(i = 1), TestItem(i = 1), TestItem(i = 3), TestItem(i = 4), TestItem(i = 4))(TestItem(i = 1), TestItem(i = 1))(Enumeratee.takeWhile2[TestItem](_.i == _.i)(breakEC))
       }
+    }
+
+    "not fail on an Empty Enumerator" in {
+      Await.result(
+        Enumerator.empty[TestItem].through(Enumeratee.grouped(Enumeratee.takeWhile2[TestItem](_.i == _.i).transform(Iteratee.getChunks[TestItem])))
+          .run(Iteratee.fold(List.empty[List[TestItem]]) { _ :+ _ }), Duration(1, "second")) must be equalTo List(List())
     }
   }
 
   "Enumeratee.groupWhile" should {
     "group chunks into lists grouped by a condition on two elements" in {
       case class TestItem(i: Int)
-      val eventuallyResult = Enumerator(TestItem(i = 1), TestItem(i = 1), TestItem(i = 3), TestItem(i = 4), TestItem(i = 4)).through(Enumeratee.groupWhile(_.i == _.i)).run(Iteratee.fold(List.empty[List[TestItem]])(_ :+ _))
+      val eventuallyResult: Future[List[List[TestItem]]] = Enumerator(
+        TestItem(i = 1),
+        TestItem(i = 1),
+        TestItem(i = 3),
+        TestItem(i = 4),
+        TestItem(i = 4))
+        .through(Enumeratee.groupWhile(_.i == _.i))
+        .run(Iteratee.fold(List.empty[List[TestItem]])(_ :+ _))
       Await.result(eventuallyResult, Duration(1, "seconds")) must be equalTo List(
         List(TestItem(i = 1), TestItem(i = 1)),
         List(TestItem(i = 3)),
