@@ -383,4 +383,21 @@ object EnumerateesSpec extends Specification
     }
   }
 
+  "Enumeratee.sliding" should {
+    "perform a sliding window over the elements in an Enumerator" in {
+      val in = List("a", "b", "c", "d", "e", "f")
+      val out = List((Some("a"), Some("b")), (Some("b"), Some("c")), (Some("c"), Some("d")), (Some("d"), Some("e")), (Some("e"), Some("f")), (Some("f"), None))
+      val f = Future(Enumerator(in: _*) |>>> Enumeratee.sliding &>> Iteratee.getChunks[(Option[String], Option[String])])(Execution.defaultExecutionContext).flatMap[List[(Option[String], Option[String])]](x => x)(Execution.defaultExecutionContext)
+      Await.result(f, Duration.Inf) must equalTo(List(out: _*))
+    }
+
+    "output (None, None) on an Empty Enumerator" in {
+      val in = List.empty[String]
+      val out = List((None, None))
+
+      val f = Future(Enumerator(in: _*) |>>> Enumeratee.sliding &>> Iteratee.getChunks[(Option[String], Option[String])])(Execution.defaultExecutionContext).flatMap[List[(Option[String], Option[String])]](x => x)(Execution.defaultExecutionContext)
+      Await.result(f, Duration.Inf) must equalTo(List(out: _*))
+    }
+  }
+
 }

@@ -8,6 +8,7 @@ import play.api.libs.iteratee.internal.{ executeIteratee, executeFuture }
 import scala.language.reflectiveCalls
 import scala.util.control.NonFatal
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * Combines the roles of an Iteratee[From] and a Enumerator[To].  This allows adapting of streams to that modify input
@@ -652,6 +653,25 @@ object Enumeratee {
       def continue[A](k: K[E, A]) = Cont(step(k))
 
     }
+  }
+
+  /**
+   * Pairs each element E with it's following element E
+   *
+   */
+  def sliding[E]: Enumeratee[E, (Option[E], Option[E])] = {
+    def second[E]: Iteratee[E, Option[E]] = {
+      var buffer: ArrayBuffer[E] = ArrayBuffer.empty[E]
+
+      def step(buffer: ArrayBuffer[E] = ArrayBuffer.empty[E]): K[E, Option[E]] = {
+        case Input.Empty => Cont(step())
+        case Input.EOF => Done(None, Input.EOF)
+        case Input.El(e) if buffer.size == 1 => Done(Some(e), Input.El(e))
+        case Input.El(e) => Cont(step(buffer :+ e))
+      }
+      Cont(step())
+    }
+    Enumeratee.grouped(Enumeratee.zip(Iteratee.head[E], second[E]))
   }
 
   /**
